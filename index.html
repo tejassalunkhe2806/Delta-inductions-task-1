@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ricochet Rumble</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div id="background"></div>
+    <div id="timer">
+      <div id="timer1" class="timer">Red Time: 60s</div>
+    </div>
+    <div id="game-board"></div>
+    <div class="rotate-controls" id="rotate-controls">
+      <button id="rotate-left">Rotate Left</button>
+      <button id="rotate-right">Rotate Right</button>
+    </div>
+    <div id="timer">
+      <div id="timer2" class="timer">Blue Time: 60s</div>
+    </div>
+    <!-- New buttons for pause, resume, and reset -->
+    <div id="controls">
+      <button id="pause">Pause</button>
+      <button id="resume">Resume</button>
+      <button id="reset">Reset</button>
+    </div>
+    <script>
+      const boardSize = 8;
+      const board = document.getElementById("game-board");
+      const rotateControls = document.getElementById("rotate-controls");
+      const rotateLeftBtn = document.getElementById("rotate-left");
+      const rotateRightBtn = document.getElementById("rotate-right");
+      const timer1 = document.getElementById("timer1");
+      const timer2 = document.getElementById("timer2");
+      let selectedTile = null;
+      let selectedPiece = null;
+      let selectedPieceType = null;
+      let currentPlayer = 1;
+      let timeLeft1 = 60;
+      let timeLeft2 = 60;
+      let timerInterval;
+
+      // Create the game board
+      for (let i = 0; i < boardSize * boardSize; i++) {
+        const tile = document.createElement("div");
+        tile.classList.add("tile");
+        board.appendChild(tile);
+      }
+
+      // Create game pieces
+      const pieces = [
+        { type: "titan", player: 1 },
+        { type: "tank", player: 1 },
+        { type: "cannon", player: 1 },
+        { type: "ricochet", player: 1 },
+        { type: "semi-ricochet", player: 1 },
+        { type: "titan", player: 2 },
+        { type: "tank", player: 2 },
+        { type: "cannon", player: 2 },
+        { type: "ricochet", player: 2 },
+        { type: "semi-ricochet", player: 2 },
+      ];
+
+      // Place pieces on the board
+      const extremeRanks = [0, boardSize - 1];
+      extremeRanks.forEach((rank, playerIndex) => {
+        pieces
+          .slice(playerIndex * 5, (playerIndex + 1) * 5)
+          .forEach((piece, index) => {
+            const tile = board.children[rank * boardSize + index];
+            const pieceElement = document.createElement("div");
+            pieceElement.classList.add(
+              "piece",
+              piece.type,
+              `player-${piece.player}`
+            );
+            pieceElement.textContent = piece.type;
+            tile.appendChild(pieceElement);
+            tile.dataset.player = piece.player;
+            tile.dataset.pieceType = piece.type;
+          });
+      });
+
+      // Timer function
+      function startTimer() {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          if (currentPlayer === 1) {
+            timeLeft1--;
+            timer1.textContent = `Red Time: ${timeLeft1}s`;
+            if (timeLeft1 <= 0) {
+              clearInterval(timerInterval);
+              alert("Red lost the game");
+            }
+          } else {
+            timeLeft2--;
+            timer2.textContent = `Blue Time: ${timeLeft2}s`;
+            if (timeLeft2 <= 0) {
+              clearInterval(timerInterval);
+              alert("Blue lost the game");
+            }
+          }
+        }, 1000);
+      }
+
+      // Handle tile clicks
+      const tiles = document.querySelectorAll(".tile");
+      tiles.forEach((tile) => {
+        tile.addEventListener("click", () => {
+          // If a possible move is clicked, move the piece
+          if (tile.classList.contains("possible-move") && selectedTile) {
+            const pieceType = selectedTile.dataset.pieceType;
+            const player = selectedTile.dataset.player;
+
+            // Remove piece from original tile
+            selectedTile.innerHTML = "";
+            delete selectedTile.dataset.player;
+            delete selectedTile.dataset.pieceType;
+
+            // Move piece to new tile
+            const pieceElement = document.createElement("div");
+            pieceElement.classList.add("piece", pieceType, `player-${player}`);
+            pieceElement.textContent = pieceType;
+            tile.appendChild(pieceElement);
+            tile.dataset.player = player;
+            tile.dataset.pieceType = pieceType;
+
+            // Clear possible move highlights
+            const possibleMoves = document.querySelectorAll(".possible-move");
+            possibleMoves.forEach((move) => {
+              move.classList.remove("possible-move");
+            });
+
+            // Fire a bullet from the player's cannon (if pieceType is not "cannon")
+            if (pieceType !== "cannon") {
+              fireBullet(player);
+            }
+
+            // Switch player and reset timer
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            startTimer();
+
+            selectedTile = null;
+            selectedPiece = null;
+            selectedPieceType = null;
+            rotateControls.style.display = "none";
+          }
+          // If a tile with a piece is clicked, show possible moves (only if it's the current player's turn)
+          else if (
+            tile.dataset.player &&
+            parseInt(tile.dataset.player) === currentPlayer
+          ) {
+            selectedTile = tile;
+            selectedPiece = tile.querySelector(".piece");
+            selectedPieceType = tile.dataset.pieceType;
+
+            // Clear previous possible move highlights
+            const possibleMoves = document.querySelectorAll(".possible-move");
+            possibleMoves.forEach((move) => {
+              move.classList.remove("possible-move");
+            });
+
+            const rect = tile.getBoundingClientRect();
+            let possibleMovesCoords = [];
+
+            if (selectedPieceType === "cannon") {
+              // Cannon can move horizontally only
+              possibleMovesCoords = [
+                {
+                  x: rect.left - 80 + window.scrollX,
+                  y: rect.top + window.scrollY,
+                },
+                {
+                  x: rect.left + 80 + window.scrollX,
+                  y: rect.top + window.scrollY,
+                },
+              ];
+            } else {
+              // Get all adjacent and diagonal coordinates
+              for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                  if (dx === 0 && dy === 0) continue; // Skip the current tile
+                  const x = rect.left + dx * 80 + window.scrollX;
+                  const y = rect.top + dy * 80 + window.scrollY;
+                  possibleMovesCoords.push({ x, y });
+                }
+              }
+            }
+
+            possibleMovesCoords.forEach((move) => {
+              const targetTile = document.elementFromPoint(move.x, move.y);
+              if (
+                targetTile &&
+                targetTile.classList.contains("tile") &&
+                !targetTile.dataset.player
+              ) {
+                targetTile.classList.add("possible-move");
+              }
+            });
+
+            // Show rotate controls if the piece is ricochet or semi-ricochet
+            if (
+              selectedPieceType === "ricochet" ||
+              selectedPieceType === "semi-ricochet"
+            ) {
+              rotateControls.style.display = "block";
+              rotateControls.style.top = `${
+                rect.top + window.scrollY + rect.height / 2
+              }px`;
+              rotateControls.style.left = `${
+                rect.left + window.scrollX + rect.width / 2
+              }px`;
+            } else {
+              rotateControls.style.display = "none";
+            }
+          }
+        });
+      });
+
+      // Handle rotation
+      rotateLeftBtn.addEventListener("click", () => {
+        if (selectedPiece) {
+          let currentRotation =
+            selectedPiece.style.transform.match(/rotate\((\d+)deg\)/);
+          currentRotation = currentRotation ? parseInt(currentRotation[1]) : 0;
+          selectedPiece.style.transform = `rotate(${currentRotation - 90}deg)`;
+          fireBullet(selectedTile.dataset.player);
+
+          // Switch player and reset timer after rotation
+          currentPlayer = currentPlayer === 1 ? 2 : 1;
+          startTimer();
+          selectedTile = null;
+          selectedPiece = null;
+          selectedPieceType = null;
+          rotateControls.style.display = "none";
+        }
+      });
+
+      rotateRightBtn.addEventListener("click", () => {
+        if (selectedPiece) {
+          let currentRotation =
+            selectedPiece.style.transform.match(/rotate\((\d+)deg\)/);
+          currentRotation = currentRotation ? parseInt(currentRotation[1]) : 0;
+          selectedPiece.style.transform = `rotate(${currentRotation + 90}deg)`;
+          fireBullet(selectedTile.dataset.player);
+
+          // Switch player and reset timer after rotation
+          currentPlayer = currentPlayer === 1 ? 2 : 1;
+          startTimer();
+          selectedTile = null;
+          selectedPiece = null;
+          selectedPieceType = null;
+          rotateControls.style.display = "none";
+        }
+      });
+
+      // Function to fire a bullet
+      // Function to fire a bullet
+      function fireBullet(player) {
+        const cannonTile = Array.from(tiles).find(
+          (tile) =>
+            tile.dataset.pieceType === "cannon" &&
+            tile.dataset.player === player.toString()
+        );
+        if (!cannonTile) return;
+
+        const bullet = document.createElement("div");
+        bullet.classList.add("bullet");
+        board.appendChild(bullet);
+
+        const cannonRect = cannonTile.getBoundingClientRect();
+        const boardRect = board.getBoundingClientRect();
+
+        bullet.style.left = `${
+          cannonRect.left +
+          window.scrollX +
+          cannonRect.width / 2 -
+          boardRect.left -
+          5
+        }px`;
+
+        bullet.style.top = `${
+          cannonRect.top +
+          window.scrollY +
+          cannonRect.height / 2 -
+          boardRect.top -
+          5
+        }px`;
+
+        player = parseInt(player); // Convert player to a number
+
+        // 1 means downward -1 means upward direction
+        let direction;
+        if (player === 1) {
+          direction = 1;
+        } else if (player === 2) {
+          direction = -1;
+        }
+
+        const bulletSpeed = 12; // Initial bullet speed
+        const bulletInterval = setInterval(() => {
+          const bulletRect = bullet.getBoundingClientRect();
+          bullet.style.top = `${
+            parseFloat(bullet.style.top) + direction * bulletSpeed
+          }px`;
+
+          // Detect if bullet goes out of bounds
+          if (
+            bulletRect.top + window.scrollY < 0 ||
+            bulletRect.top + window.scrollY > boardRect.height
+          ) {
+            clearInterval(bulletInterval);
+            bullet.remove();
+          }
+
+          // Check for collisions with pieces
+          tiles.forEach((tile) => {
+            const tileRect = tile.getBoundingClientRect();
+            if (
+              bulletRect.left > tileRect.left &&
+              bulletRect.right < tileRect.right &&
+              bulletRect.top > tileRect.top &&
+              bulletRect.bottom < tileRect.bottom
+            ) {
+              const piece = tile.querySelector(".piece");
+              if (piece && tile.dataset.player !== player.toString()) {
+                const pieceType = tile.dataset.pieceType;
+
+                if (pieceType === "tank" || pieceType === "cannon") {
+                  clearInterval(bulletInterval);
+                  bullet.remove();
+                }
+
+                if (pieceType === "titan") {
+                  clearInterval(bulletInterval);
+                  bullet.remove();
+                  alert(`${player === 1 ? "Blue" : "Red"} lost the game !`);
+                  resetGame(); // Assuming resetGame() resets the game state
+                }
+
+                if (pieceType === "ricochet") {
+                  clearInterval(bulletInterval);
+                  bullet.remove();
+
+                  // Calculate the new direction based on the ricochet piece's position
+                  const ricochetRect = tile.getBoundingClientRect();
+                  let newDirection;
+                  if (tile.dataset.player === "1") {
+                    newDirection = bulletRect.left > ricochetRect.left ? -1 : 1;
+                  } else if (tile.dataset.player === "2") {
+                    newDirection = bulletRect.left > ricochetRect.left ? 1 : -1;
+                  }
+
+                  // Create a new bullet with the new direction
+                  const newBullet = document.createElement("div");
+                  newBullet.classList.add("bullet");
+                  board.appendChild(newBullet);
+                  newBullet.style.left = `${
+                    ricochetRect.left + window.scrollX
+                  }px`;
+                  newBullet.style.top = `${
+                    ricochetRect.top + window.scrollY
+                  }px`;
+                  newBullet.style.transform = `rotate(${newDirection * 90}deg)`;
+
+                  const newBulletSpeed = 2; // New bullet speed after hitting ricochet
+                  // Start a new interval for the new bullet
+                  const newBulletInterval = setInterval(() => {
+                    const newBulletRect = newBullet.getBoundingClientRect();
+                    newBullet.style.left = `${
+                      parseFloat(newBullet.style.left) +
+                      newDirection * newBulletSpeed
+                    }px`;
+
+                    // Detect if new bullet goes out of bounds
+                    if (
+                      newBulletRect.left + window.scrollX < 0 ||
+                      newBulletRect.left + window.scrollX > boardRect.width
+                    ) {
+                      clearInterval(newBulletInterval);
+                      newBullet.remove();
+                    }
+
+                    // Check for collisions with pieces
+                    tiles.forEach((tile) => {
+                      const tileRect = tile.getBoundingClientRect();
+                      if (
+                        newBulletRect.left > tileRect.left &&
+                        newBulletRect.right < tileRect.right &&
+                        newBulletRect.top > tileRect.top &&
+                        newBulletRect.bottom < tileRect.bottom
+                      ) {
+                        const piece = tile.querySelector(".piece");
+                        if (
+                          piece &&
+                          tile.dataset.player !== player.toString()
+                        ) {
+                          const pieceType = tile.dataset.pieceType;
+
+                          if (pieceType === "tank" || pieceType === "cannon") {
+                            clearInterval(newBulletInterval);
+                            newBullet.remove();
+                          }
+
+                          if (pieceType === "titan") {
+                            clearInterval(newBulletInterval);
+                            newBullet.remove();
+                            alert(
+                              `${player === 1 ? "Blue" : "Red"} lost the game!`
+                            );
+                            resetGame(); // Assuming resetGame() resets the game state
+                          }
+                        }
+                      }
+                    });
+                  }, 30);
+                }
+              }
+            }
+          });
+        }, 30);
+      }
+
+      // Start the timer for the first player
+      startTimer();
+
+      // Event listeners for the control buttons
+      const pauseBtn = document.getElementById("pause");
+      const resumeBtn = document.getElementById("resume");
+      const resetBtn = document.getElementById("reset");
+
+      pauseBtn.addEventListener("click", pauseGame);
+      resumeBtn.addEventListener("click", resumeGame);
+      resetBtn.addEventListener("click", resetGame);
+
+      // Function to pause the game
+      function pauseGame() {
+        clearInterval(timerInterval);
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = false;
+      }
+
+      // Function to resume the game
+      function resumeGame() {
+        startTimer();
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+      }
+
+      // Function to reset the game
+      function resetGame() {
+        clearInterval(timerInterval);
+        timeLeft1 = 60;
+        timeLeft2 = 60;
+        timer1.textContent = "Red Time: 60s";
+        timer2.textContent = "Blue Time: 60s";
+        currentPlayer = 1;
+        startTimer();
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+
+        // Remove existing pieces from the board
+        const tiles = document.querySelectorAll(".tile");
+        tiles.forEach((tile) => {
+          tile.innerHTML = "";
+          delete tile.dataset.player;
+          delete tile.dataset.pieceType;
+        });
+
+        // Place pieces on the board
+        const extremeRanks = [0, boardSize - 1];
+        extremeRanks.forEach((rank, playerIndex) => {
+          pieces
+            .slice(playerIndex * 5, (playerIndex + 1) * 5)
+            .forEach((piece, index) => {
+              const tile = board.children[rank * boardSize + index];
+              const pieceElement = document.createElement("div");
+              pieceElement.classList.add(
+                "piece",
+                piece.type,
+                `player-${piece.player}`
+              );
+              pieceElement.textContent = piece.type;
+              tile.appendChild(pieceElement);
+              tile.dataset.player = piece.player;
+              tile.dataset.pieceType = piece.type;
+            });
+        });
+      }
+
+      // Automatically start the game again when it ends
+      function checkGameEnd() {
+        if (timeLeft1 <= 0 || timeLeft2 <= 0) {
+          resetGame();
+          startTimer(); // Start the game again after resetting
+        }
+      }
+    </script>
+  </body>
+</html>

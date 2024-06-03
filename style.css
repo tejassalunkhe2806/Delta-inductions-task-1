@@ -1,0 +1,149 @@
+      #game-board {
+        width: 640px;
+        height: 640px;
+        margin: auto;
+        display: flex;
+        flex-wrap: wrap;
+        border: 5px solid rgb(189, 192, 186);
+        border-radius: 5px;
+        position: relative; /* For positioning rotation controls */
+        /* Add margin-top and margin-bottom to create space for timers */
+        margin-top: 40px;
+        margin-bottom: 20px;
+      }
+      .tile {
+        width: 80px;
+        height: 80px;
+        border: 1px solid black;
+        box-sizing: border-box;
+        position: relative;
+        background-color: white;
+      }
+      .piece {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 17px;
+        transition: transform 0.3s; /* Smooth rotation */
+      }
+      /* Player 1 styles */
+      .titan.player-1 {
+        background-color: #f33939;
+      }
+      .tank.player-1 {
+        background-color: #f33939;
+      }
+      .cannon.player-1 {
+        background-color: #f33939;
+      }
+      .semi-ricochet.player-1 {
+        background-image: url("/DeltaTask-1/redsemiricochet.png");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        color: transparent; /* Hide the text */
+      }
+      .ricochet.player-1 {
+        background-image: url("/DeltaTask-1/redricochet.jpg");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        color: transparent; /* Hide the text */
+      }
+      /* Player 2 styles */
+      .titan.player-2 {
+        background-color: #6142ea;
+      }
+      .tank.player-2 {
+        background-color: #6142ea;
+      }
+      .cannon.player-2 {
+        background-color: #6142ea;
+      }
+      .semi-ricochet.player-2 {
+        background-image: url("/DeltaTask-1/bluesemiricochet.jpg");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        color: transparent; /* Hide the text */
+      }
+      .ricochet.player-2 {
+        background-image: url("/DeltaTask-1/solid ricochet.jpeg");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        color: transparent; /* Hide the text */
+      }
+      .possible-move {
+        background-color: lightgray;
+        cursor: pointer;
+      }
+      .rotate-controls {
+        position: absolute;
+        display: none;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+      }
+      .rotate-controls button {
+        margin: 5px;
+        padding: 5px 10px;
+      }
+      .bullet {
+        width: 10px;
+        height: 10px;
+        background-color: rgb(24, 1, 1);
+        border-radius: 50%;
+        position: absolute;
+        z-index: 10;
+      }
+      #timer {
+        text-align: center;
+        margin-top: 20px;
+        margin-bottom: 20px;
+      }
+      .timer {
+        font-size: 18px;
+        margin: 5px 0;
+      }
+      #timer1 {
+        color:azure;
+        position: absolute;
+        top: 0;
+        width: 100%;
+        margin-top: 10px;
+      }
+      #timer2 {
+        color:azure;
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+      }
+      #controls {
+        position: absolute;
+        top: 250px;
+        right: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #controls button {
+        background-color: lightgoldenrodyellow;
+        font-size: 20px;
+        margin: 12px 0;
+      }
+      #background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("/DeltaTask-1/tank1bg.jpg"); /* Specify the path to your background image */
+        background-size: cover;
+        background-repeat: no-repeat;
+        z-index: -1; /* Ensure it stays behind other elements */
+      }
